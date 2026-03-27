@@ -1,0 +1,40 @@
+name: F1 Extract (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      session_key:
+        description: "Session Key"
+        required: true
+      meeting_key:
+        description: "Meeting Key"
+        required: true
+      year:
+        description: "Year"
+        required: true
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run extractor
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python src/extractor/openf1_extractor.py \
+          ${{ github.event.inputs.session_key }} \
+          ${{ github.event.inputs.meeting_key }} \
+          ${{ github.event.inputs.year }}
