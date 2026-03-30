@@ -1,0 +1,63 @@
+name: DBT Pipeline
+
+on:
+  # Manual trigger from GitHub UI
+  workflow_dispatch:
+
+  # Auto trigger after extractor (watchdog) finishes
+  # workflow_run:
+  #   workflows: ["F1 Pipeline"]   #  must match your extractor workflow name
+  #   types:
+  #     - completed
+
+jobs:
+  dbt:
+    runs-on: ubuntu-latest
+
+    # Only run if extractor succeeded OR manual trigger
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    env:
+      DBT_PROFILES_DIR: ./f1_data   # Point to the directory containing profiles.yml
+
+    steps:
+      # 1. Checkout repo
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 3. Install dbt
+      - name: Install dbt
+        run: pip install dbt-postgres==1.8.0
+
+      # 4. Install dependencies (packages.yml)
+      - name: Install dbt dependencies
+        working-directory: f1_data
+        run: dbt deps
+
+      # 5. Debug connection (optional but recommended)
+      - name: dbt debug
+        working-directory: f1_data
+        env:
+          SUPABASE_HOST: ${{ secrets.SUPABASE_HOST }}
+          SUPABASE_USER: ${{ secrets.SUPABASE_USER }}
+          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+          SUPABASE_DBNAME: ${{ secrets.SUPABASE_DBNAME }}
+          SUPABASE_PORT: ${{ secrets.SUPABASE_PORT }}
+        run: dbt debug
+
+      # 6. Run full pipeline (models + snapshots + tests)
+      - name: Run dbt build
+        working-directory: f1_data
+        env:
+          SUPABASE_HOST: ${{ secrets.SUPABASE_HOST }}
+          SUPABASE_USER: ${{ secrets.SUPABASE_USER }}
+          SUPABASE_PASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+          SUPABASE_DBNAME: ${{ secrets.SUPABASE_DBNAME }}
+          SUPABASE_PORT: ${{ secrets.SUPABASE_PORT }}
+        run: dbt run --select models/staging/

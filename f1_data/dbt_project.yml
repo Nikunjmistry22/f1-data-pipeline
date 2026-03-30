@@ -1,0 +1,45 @@
+name: f1_pipeline
+version: '1.0.0'
+config-version: 2
+
+profile: f1_data
+
+model-paths:     ["models"]
+snapshot-paths:  ["snapshots"]
+macro-paths:     ["macros"]
+test-paths:      ["tests"]
+seed-paths:      ["seeds"]
+target-path:     "target"
+clean-targets:   ["target", "dbt_packages"]
+
+models:
+  f1_pipeline:
+
+    staging:
+      +schema:       staging
+      +materialized: view          # staging = always views, cheap, no storage cost
+
+    intermediate:
+      +schema:       intermediate
+      +materialized: view
+
+    marts:
+      +schema:       marts
+      +materialized: table         # marts = tables, fast for BI queries
+
+      race:
+        +materialized: table
+
+      strategy:
+        +materialized: table
+
+      championship:
+        +materialized: table
+
+      driver:
+        +materialized: table
+
+snapshots:
+  f1_pipeline:
+    +target_schema: snapshots
+    +strategy:      check

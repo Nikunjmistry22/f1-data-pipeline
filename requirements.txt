@@ -4,3 +4,4 @@ supabase
 python-dotenv
 psycopg2
 tzdata
+dbt-postgres

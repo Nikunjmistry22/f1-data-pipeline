@@ -1,0 +1,98 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: meetings
+      - name: sessions
+      - name: drivers
+      - name: laps
+      - name: stints
+      - name: pit
+      - name: session_results
+      - name: car_data_lap_agg   # 👈 THIS WAS MISSING
+
+
+models:
+
+  - name: stg_meetings
+    description: "Cleaned GP weekend metadata. One row per GP weekend."
+    columns:
+      - name: meeting_key
+        tests: [not_null, unique]
+      - name: season_year
+        tests: [not_null]
+      - name: country_name
+        tests: [not_null]
+
+  - name: stg_sessions
+    description: "Cleaned session metadata. One row per session."
+    columns:
+      - name: session_key
+        tests: [not_null, unique]
+      - name: meeting_key
+        tests: [not_null]
+      - name: is_race
+        description: "True only for Race sessions."
+
+  - name: stg_drivers
+    description: "Cleaned driver + team info per session. Source for SCD snapshot."
+    columns:
+      - name: driver_number
+        tests: [not_null]
+      - name: session_key
+        tests: [not_null]
+      - name: team_name
+        tests: [not_null]
+
+  - name: stg_laps
+    description: "Cleaned lap timing data. One row per driver per lap."
+    columns:
+      - name: session_key
+        tests: [not_null]
+      - name: driver_number
+        tests: [not_null]
+      - name: lap_number
+        tests: [not_null]
+
+  - name: stg_stints
+    description: "Cleaned tyre stint data with normalised compound values."
+    columns:
+      - name: session_key
+        tests: [not_null]
+      - name: driver_number
+        tests: [not_null]
+      - name: compound
+        tests:
+          - accepted_values:
+              values: ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"]
+              where: "compound is not null"
+
+  - name: stg_pit
+    description: "Cleaned pit stop events."
+    columns:
+      - name: session_key
+        tests: [not_null]
+      - name: driver_number
+        tests: [not_null]
+
+  - name: stg_session_results
+    description: "Cleaned final race standings with parsed gap and winner flags."
+    columns:
+      - name: session_key
+        tests: [not_null]
+      - name: driver_number
+        tests: [not_null]
+      - name: finish_position
+        tests: [not_null]
+
+  - name: stg_car_data_lap_agg
+    description: "Cleaned telemetry aggregated per lap per driver."
+    columns:
+      - name: session_key
+        tests: [not_null]
+      - name: driver_number
+        tests: [not_null]
+      - name: lap_number
+        tests: [not_null]

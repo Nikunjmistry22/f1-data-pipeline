@@ -1,0 +1,114 @@
+version: 2
+
+models:
+
+  # ── RACE MARTS ──────────────────────────────────────────────────────────────
+
+  - name: fct_race_results
+    description: >
+      Final race standings per driver per race with lap time performance,
+      pit stop summary and winner flags.
+      One row per driver per race session.
+    columns:
+      - name: session_key
+        tests: [not_null]
+      - name: driver_number
+        tests: [not_null]
+      - name: finish_position
+        tests: [not_null]
+      - name: season_year
+        tests: [not_null]
+      - name: is_winner
+        description: "True for the race winner only."
+      - name: set_fastest_lap
+        description: "True if this driver set the fastest lap of the race."
+      - name: gap_to_fastest_lap_secs
+        description: "Driver's fastest lap minus the race fastest lap. 0 for the fastest lap setter."
+
+  - name: fct_lap_times
+    description: >
+      Every lap from every race with full context — driver, team, tyre,
+      telemetry, and pace relative to session fastest.
+      Primary table for lap time progression and tyre degradation analysis.
+    columns:
+      - name: session_key
+        tests: [not_null]
+      - name: driver_number
+        tests: [not_null]
+      - name: lap_number
+        tests: [not_null]
+      - name: lap_time_secs
+        tests: [not_null]
+      - name: compound
+        tests:
+          - accepted_values:
+              values: ["SOFT", "MEDIUM", "HARD", "INTERMEDIATE", "WET"]
+              where: "compound is not null"
+
+  # ── STRATEGY MARTS ──────────────────────────────────────────────────────────
+
+  - name: fct_pit_strategy
+    description: >
+      Tyre strategy per driver per race. One row per stint.
+      Includes compound sequence, pit stop timing, and tyre degradation rate.
+    columns:
+      - name: session_key
+        tests: [not_null]
+      - name: driver_number
+        tests: [not_null]
+      - name: stint_number
+        tests: [not_null]
+      - name: compound
+        tests: [not_null]
+      - name: tyre_strategy
+        description: "e.g. 'SOFT → MEDIUM' or 'MEDIUM → HARD → SOFT'"
+
+  # ── CHAMPIONSHIP MARTS ──────────────────────────────────────────────────────
+
+  - name: fct_driver_season
+    description: >
+      Driver championship standings after each race round.
+      Cumulative points, wins, podiums, DNFs per season.
+      Use for standings trajectory visualisations.
+    columns:
+      - name: season_year
+        tests: [not_null]
+      - name: driver_number
+        tests: [not_null]
+      - name: session_key
+        tests: [not_null]
+      - name: cumulative_points
+        tests: [not_null]
+      - name: championship_position
+        tests: [not_null]
+
+  # ── DRIVER MARTS ────────────────────────────────────────────────────────────
+
+  - name: fct_driver_pace
+    description: >
+      Driver pace summary per race with head-to-head teammate comparison.
+      Fastest lap, median lap, consistency (stddev), theoretical best lap,
+      and execution delta (how much pace was left on the table).
+    columns:
+      - name: session_key
+        tests: [not_null]
+      - name: driver_number
+        tests: [not_null]
+      - name: fastest_lap_secs
+        tests: [not_null]
+      - name: theoretical_best_lap_secs
+        description: "Sum of driver's best S1 + best S2 + best S3. Always <= fastest lap."
+      - name: execution_delta_secs
+        description: "Fastest lap minus theoretical best. How many seconds of pace were not combined in one lap."
+
+  - name: dim_drivers
+    description: >
+      Current driver dimension from SCD Type 2 snapshot.
+      Use for current team lookups. Use scd_drivers for historical lookups.
+    columns:
+      - name: driver_number
+        tests: [not_null, unique]
+      - name: driver_code
+        tests: [not_null]
+      - name: team_name
+        tests: [not_null]

@@ -1,0 +1,12 @@
+f1_data:
+  target: prod
+  outputs:
+    prod:
+      type: postgres
+      host: "{{ env_var('SUPABASE_HOST') }}"
+      user: "{{ env_var('SUPABASE_USER') }}"
+      password: "{{ env_var('SUPABASE_PASSWORD') }}"
+      port: "{{ env_var('SUPABASE_PORT') | int }}"
+      dbname: "{{ env_var('SUPABASE_DBNAME') }}"
+      schema: raw
+      threads: 4
