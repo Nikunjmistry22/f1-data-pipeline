@@ -1,10 +1,6 @@
 name: DBT Pipeline
 on:
   workflow_dispatch:
-  # workflow_run:
-  #   workflows: ["F1 Pipeline"]
-  #   types:
-  #     - completed
 
 jobs:
   dbt:
@@ -25,20 +21,18 @@ jobs:
 
       - name: Create profiles.yml
         run: |
-          cat > f1_data/profiles.yml << 'EOF'
-f1_data:
-  target: prod
-  outputs:
-    prod:
-      type: postgres
-      host: "{{ env_var('SUPABASE_HOST') }}"
-      user: "{{ env_var('SUPABASE_USER') }}"
-      password: "{{ env_var('SUPABASE_PASSWORD') }}"
-      port: "{{ env_var('SUPABASE_PORT') | int }}"
-      dbname: "{{ env_var('SUPABASE_DBNAME') }}"
-      schema: raw
-      threads: 4
-EOF:
+          echo "f1_data:" > f1_data/profiles.yml
+          echo "  target: prod" >> f1_data/profiles.yml
+          echo "  outputs:" >> f1_data/profiles.yml
+          echo "    prod:" >> f1_data/profiles.yml
+          echo "      type: postgres" >> f1_data/profiles.yml
+          echo "      host: \"{{ env_var('SUPABASE_HOST') }}\"" >> f1_data/profiles.yml
+          echo "      user: \"{{ env_var('SUPABASE_USER') }}\"" >> f1_data/profiles.yml
+          echo "      password: \"{{ env_var('SUPABASE_PASSWORD') }}\"" >> f1_data/profiles.yml
+          echo "      port: \"{{ env_var('SUPABASE_PORT') | int }}\"" >> f1_data/profiles.yml
+          echo "      dbname: \"{{ env_var('SUPABASE_DBNAME') }}\"" >> f1_data/profiles.yml
+          echo "      schema: raw" >> f1_data/profiles.yml
+          echo "      threads: 4" >> f1_data/profiles.yml
 
       - name: Install dbt dependencies
         working-directory: f1_data
