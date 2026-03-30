@@ -1,0 +1,161 @@
+name: F1 Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Command to run'
+        required: true
+        default: 'backfill'
+        type: choice
+        options:
+          - watchdog
+          - sync
+          - extract
+          - backfill
+
+      year:
+        description: 'Year (e.g. 2024)'
+        required: false
+        default: '2024'
+        type: string
+
+      session_key:
+        description: '[extract] session_key'
+        required: false
+        type: string
+
+      meeting_key:
+        description: '[extract] meeting_key'
+        required: false
+        type: string
+
+      dry_run:
+        description: '[backfill] dry run only?'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: f1-pipeline
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: F1 Pipeline Runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      # ------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      # ------------------------------------------------------------
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # ------------------------------------------------------------
+      - name: Set variables
+        id: vars
+        run: |
+          YEAR="${{ github.event.inputs.year }}"
+          YEAR="${YEAR:-$(date +%Y)}"
+
+          # Validate year
+          if ! [[ "$YEAR" =~ ^[0-9]{4}$ ]]; then
+            echo "❌ Invalid year: $YEAR"
+            exit 1
+          fi
+
+          echo "year=$YEAR" >> $GITHUB_OUTPUT
+
+      # ------------------------------------------------------------
+      - name: Run WATCHDOG
+        if: github.event.inputs.command == 'watchdog'
+        env:
+          SUPABASE_DB_URL:   ${{ secrets.SUPABASE_DB_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GITHUB_RUN_ID:     ${{ github.run_id }}
+        run: |
+          echo "⏱ Running watchdog"
+          python src/extractor.py watchdog --run-id "$GITHUB_RUN_ID"
+
+      # ------------------------------------------------------------
+      - name: Run SYNC
+        if: github.event.inputs.command == 'sync'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          YEAR="${{ steps.vars.outputs.year }}"
+          echo "🔄 Syncing calendar for year $YEAR"
+          python src/extractor.py sync --year "$YEAR"
+
+      # ------------------------------------------------------------
+      - name: Run EXTRACT
+        if: github.event.inputs.command == 'extract'
+        env:
+          SUPABASE_DB_URL:   ${{ secrets.SUPABASE_DB_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          SK="${{ github.event.inputs.session_key }}"
+          MK="${{ github.event.inputs.meeting_key }}"
+          YEAR="${{ steps.vars.outputs.year }}"
+
+          if [ -z "$SK" ] || [ -z "$MK" ]; then
+            echo "❌ session_key and meeting_key are required"
+            exit 1
+          fi
+
+          echo "🚀 Extracting session_key=$SK meeting_key=$MK year=$YEAR"
+
+          python src/extractor.py extract \
+            --session-key "$SK" \
+            --meeting-key "$MK" \
+            --year "$YEAR"
+
+      # ------------------------------------------------------------
+      - name: Run BACKFILL
+        if: github.event.inputs.command == 'backfill'
+        env:
+          SUPABASE_DB_URL:   ${{ secrets.SUPABASE_DB_URL }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          YEAR="${{ steps.vars.outputs.year }}"
+          DRY="${{ github.event.inputs.dry_run }}"
+
+          FLAGS=""
+          if [ "$DRY" = "true" ]; then
+            FLAGS="--dry-run"
+          fi
+
+          echo "🔥 Backfilling year=$YEAR (dry_run=$DRY)"
+
+          python src/extractor.py backfill \
+            --year "$YEAR" $FLAGS
+
+      # ------------------------------------------------------------
+      - name: Notify failure (Slack)
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID:     ${{ github.run_id }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then exit 0; fi
+
+          RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+          PAYLOAD=$(printf '{"text":":rotating_light: F1 Pipeline FAILED\nRun: %s"}' "$RUN_URL")
+
+          curl -s -X POST -H 'Content-type: application/json' \
+               --data "$PAYLOAD" "$SLACK_WEBHOOK_URL" || true

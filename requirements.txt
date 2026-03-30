@@ -1,3 +1,6 @@
 httpx
 polars
 supabase
+python-dotenv
+psycopg2
+tzdata

@@ -1,0 +1,8 @@
+few changes need to be done .
+
+apart from that after session_key u r not putting car aggreggated data into db.
+only do for Session_name=Race in sessions and for those meeting_ key in meeting
+think on the basis on analytics dont fetch all tables . think of it as DE thing where u 
+need to build some business metrics on top of this tables mentioned. right now for testing i did for 2023 
+where some data are not present  but will be focussing on 2025 onwards full data
+using dbt is the main objective and documents of dbt, macros, models,snapsorts of drivers and so on think of it that way and build this extracting and raw tables
