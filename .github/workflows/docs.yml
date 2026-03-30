@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]        # regenerate on every push
   workflow_dispatch:        # manual trigger
+  
+permissions:
+  contents: write 
 
 jobs:
   docs:
