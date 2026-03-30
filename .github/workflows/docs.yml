@@ -62,5 +62,3 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./gh-pages
-do
-https://nikunjmistry22.github.io/f1-data-pipeline/
