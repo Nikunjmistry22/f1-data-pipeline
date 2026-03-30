@@ -2,4 +2,3 @@
 .venv
 additional/
 logs/
-f1_data/logs/dbt.log
